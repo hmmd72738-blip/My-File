@@ -1,113 +1,186 @@
-<!doctype html>
-<html lang="bn">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Vaultify X — Encrypted Vault</title>
-  <meta name="description" content="Vaultify X – client-side AES-GCM encrypted file vault" />
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    :root{--bg:#0a0f17;--text:#e7edf5;--muted:#9aa6b2;--accent:#22d3ee}
-    body{background:var(--bg);color:var(--text);min-height:100vh;scroll-behavior:smooth}
-    .glass{backdrop-filter:blur(12px);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}
-    .btn{display:inline-block;padding:.65rem 1.25rem;border-radius:.75rem;background:var(--accent);color:#000;font-weight:600}
-    .btn:hover{background:#67e8f9}
-    .focus-ring:focus{outline:2px solid var(--accent);outline-offset:2px}
-    .fade{animation:fade .6s ease}@keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-  </style>
-</head>
-<body class="font-sans">
-  <main id="app" class="p-6 md:p-10 max-w-5xl mx-auto"></main>
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>
+      W8Team
+    </title>
+    <style>
+      html,body{margin:0;height:100%;background:#111;overflow:hidden;}
+    canvas{width:100vw;height:100vh;display:block;}
+    </style>
+  </head>
+  <body>
+    <canvas id="gl">
+    </canvas>
+    <audio id="bgAudio" src="Louad3.mp3" loop="">
+    </audio>
+    <script>
+      // Auto-play audio immediately on load
+const audio = document.getElementById(&#34;bgAudio&#34;);
+audio.volume = 0.9;
+audio.loop = true;
 
-  <!-- setup -->
-  <template id="tpl-setup">
-    <section class="glass rounded-3xl p-8 mt-20 text-center fade">
-      <h1 class="text-3xl font-bold">Vaultify X</h1>
-      <p class="text-[var(--muted)] mt-1">তোমার নিরাপদ এনক্রিপ্টেড ভল্ট তৈরি করো 🔒</p>
-      <form id="setupForm" class="mt-6 space-y-4 max-w-sm mx-auto text-left">
-        <input id="setupPass" type="password" minlength="6" required class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus-ring" placeholder="নতুন পাসওয়ার্ড দাও">
-        <input id="setupPass2" type="password" minlength="6" required class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus-ring" placeholder="পাসওয়ার্ড আবার লিখো">
-        <button class="btn w-full">সেভ করো এবং চালিয়ে যাও</button>
-      </form>
-      <p class="text-xs text-[var(--muted)] mt-4">⚠️ পাসওয়ার্ড ভুলে গেলে ডেটা ফেরত পাওয়া যাবে না।</p>
-    </section>
-  </template>
+// Force play on page load
+window.addEventListener(&#39;load&#39;, () =&gt; {
+  audio.play().catch(e =&gt; console.log(&#34;Autoplay blocked:&#34;, e));
+});
 
-  <!-- login -->
-  <template id="tpl-login">
-    <section class="glass rounded-3xl p-8 mt-20 text-center fade">
-      <h1 class="text-3xl font-bold">Vaultify X</h1>
-      <p class="text-[var(--muted)] mt-1">প্রবেশ করতে তোমার পাসওয়ার্ড দাও</p>
-      <form id="loginForm" class="mt-6 space-y-4 max-w-sm mx-auto text-left">
-        <input id="loginPass" type="password" required class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus-ring" placeholder="পাসওয়ার্ড">
-        <button class="btn w-full">লগইন</button>
-      </form>
-    </section>
-  </template>
+// Also try to play immediately
+audio.play().catch(e =&gt; {
+  // Fallback: play on any user interaction
+  const playAudio = () =&gt; {
+    audio.play();
+    document.removeEventListener(&#39;click&#39;, playAudio);
+    document.removeEventListener(&#39;keydown&#39;, playAudio);
+  };
+  document.addEventListener(&#39;click&#39;, playAudio);
+  document.addEventListener(&#39;keydown&#39;, playAudio);
+});
 
-  <!-- shell -->
-  <template id="tpl-shell">
-    <div class="grid md:grid-cols-12 gap-6 fade">
-      <aside class="md:col-span-3 lg:col-span-2 glass rounded-3xl p-5 space-y-4">
-        <h2 class="text-xl font-semibold flex items-center gap-2">🔐 Vaultify X</h2>
-        <nav class="flex flex-col space-y-2">
-          <button data-page="dashboard" class="px-3 py-2 text-left rounded-lg hover:bg-white/10">ড্যাশবোর্ড</button>
-          <button data-page="files" class="px-3 py-2 text-left rounded-lg hover:bg-white/10">ফাইলসমূহ</button>
-          <button data-page="upload" class="px-3 py-2 text-left rounded-lg hover:bg-white/10">আপলোড</button>
-          <button data-page="settings" class="px-3 py-2 text-left rounded-lg hover:bg-white/10">সেটিংস</button>
-        </nav>
-        <button id="logoutBtn" class="mt-4 w-full py-2 rounded-lg border border-white/10 hover:bg-white/10 text-sm">লগআউট</button>
-      </aside>
-      <section id="view" class="md:col-span-9 lg:col-span-10"></section>
-    </div>
-  </template>
+const canvas = document.getElementById(&#34;gl&#34;);
 
-<script>
-// ---------- Helpers & DB ----------
-const qs=(s,e=document)=>e.querySelector(s);const qsa=(s,e=document)=>[...e.querySelectorAll(s)];
-const enc=new TextEncoder(),dec=new TextDecoder();
-const dbName='vaultifyx-db',storeName='files',metaStore='meta';
-function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open(dbName,1);r.onupgradeneeded=()=>{const db=r.result;if(!db.objectStoreNames.contains(storeName))db.createObjectStore(storeName,{keyPath:'id'});if(!db.objectStoreNames.contains(metaStore))db.createObjectStore(metaStore,{keyPath:'key'});};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
-async function metaSet(k,v){const db=await openDB();const t=db.transaction(metaStore,'readwrite');t.objectStore(metaStore).put({key:k,value:v});return t.complete;}
-async function metaGet(k){const db=await openDB();const t=db.transaction(metaStore,'readonly');const r=t.objectStore(metaStore).get(k);return new Promise(x=>{r.onsuccess=()=>x(r.result?.value||null);});}
-async function dbGetAll(){const db=await openDB();const t=db.transaction(storeName,'readonly');const r=t.objectStore(storeName).getAll();return new Promise(x=>{r.onsuccess=()=>x(r.result||[]);});}
-async function dbPut(f){const db=await openDB();const t=db.transaction(storeName,'readwrite');t.objectStore(storeName).put(f);return t.complete;}
-async function dbDelete(id){const db=await openDB();const t=db.transaction(storeName,'readwrite');t.objectStore(storeName).delete(id);return t.complete;}
-function prettySize(b){if(!b)return'0 B';const k=1024,s=['B','KB','MB','GB'],i=Math.floor(Math.log(b)/Math.log(k));return (b/Math.pow(k,i)).toFixed(1)+' '+s[i];}
+// Click anywhere to restart the sound
+canvas.addEventListener(&#39;click&#39;, () =&gt; {
+  audio.currentTime = 0;
+  audio.play();
+});
+const gl = canvas.getContext(&#34;webgl&#34;);
+if(!gl){ alert(&#34;WebGL not supported&#34;); }
 
-// ---------- Crypto ----------
-async function sha256(t){const h=await crypto.subtle.digest('SHA-256',enc.encode(t));return btoa(String.fromCharCode(...new Uint8Array(h)));}
-async function deriveKey(p,s){const base=await crypto.subtle.importKey('raw',enc.encode(p),'PBKDF2',false,['deriveKey']);return crypto.subtle.deriveKey({name:'PBKDF2',salt:s,iterations:250000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);}
-async function encryptData(k,plain){const iv=crypto.getRandomValues(new Uint8Array(12));const buf=await crypto.subtle.encrypt({name:'AES-GCM',iv},k,plain);return{iv:Array.from(iv),data:Array.from(new Uint8Array(buf))};}
-async function decryptData(k,ivA,dataA){const iv=new Uint8Array(ivA),data=new Uint8Array(dataA);return crypto.subtle.decrypt({name:'AES-GCM',iv},k,data);}
+function resize(){
+  const dpr = Math.min(window.devicePixelRatio,2);
+  canvas.width = innerWidth * dpr;
+  canvas.height = innerHeight * dpr;
+  gl.viewport(0,0,canvas.width,canvas.height);
+}
+resize();
+addEventListener(&#34;resize&#34;, resize);
 
-// ---------- State ----------
-const state={key:null,files:[],logged:false};
+function compile(src,type){
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if(!gl.getShaderParameter(s, gl.COMPILE_STATUS))
+      console.error(gl.getShaderInfoLog(s));
+  return s;
+}
 
-// ---------- Init ----------
-(async function init(){const app=qs('#app');const h=await metaGet('passHash');if(!h){app.innerHTML=qs('#tpl-setup').innerHTML;bindSetup();}else{app.innerHTML=qs('#tpl-login').innerHTML;bindLogin(h);}})();
+const vs = compile(`attribute vec2 p;void main(){gl_Position=vec4(p,0,1);}`, gl.VERTEX_SHADER);
 
-function bindSetup(){qs('#setupForm').onsubmit=async e=>{e.preventDefault();const p1=qs('#setupPass').value.trim(),p2=qs('#setupPass2').value.trim();if(p1!==p2)return alert('পাসওয়ার্ড মিলছে না');if(p1.length<6)return alert('কমপক্ষে ৬ অক্ষর');const h=await sha256(p1);await metaSet('passHash',h);const salt=crypto.getRandomValues(new Uint8Array(16));await metaSet('salt',Array.from(salt));location.reload();};}
-function bindLogin(h){qs('#loginForm').onsubmit=async e=>{e.preventDefault();const p=qs('#loginPass').value;if(await sha256(p)!==h)return alert('ভুল পাসওয়ার্ড');const sA=await metaGet('salt');const key=await deriveKey(p,new Uint8Array(sA));state.key=key;state.logged=true;renderShell();};}
+const fs = compile(`
+precision highp float;
 
-// ---------- UI ----------
-async function renderShell(){const a=qs('#app');a.innerHTML=qs('#tpl-shell').innerHTML;qsa('nav button').forEach(b=>b.onclick=()=>{qsa('nav button').forEach(x=>x.classList.remove('bg-white/10'));b.classList.add('bg-white/10');renderPage(b.dataset.page);});qs('#logoutBtn').onclick=()=>location.reload();await refreshFiles();renderPage('dashboard');}
-async function refreshFiles(){state.files=await dbGetAll();}
-function renderPage(p){if(p==='dashboard')dash();if(p==='files')files();if(p==='upload')upload();if(p==='settings')settings();}
+uniform vec2 R;
+uniform float T;
+uniform float density;
+uniform float scatter;
+uniform float speed;
+uniform float lightI;
 
-function dash(){const v=qs('#view'),c=state.files.length,t=state.files.reduce((n,f)=>n+f.size,0);v.innerHTML=`<div class="glass rounded-3xl p-6"><h2 class="text-2xl font-semibold mb-4">স্বাগতম 👋</h2><div class="grid md:grid-cols-3 gap-4"><div class="p-5 bg-white/5 rounded-2xl border border-white/10"><p class="text-sm text-[var(--muted)]">মোট ফাইল</p><p class="text-3xl font-bold">${c}</p></div><div class="p-5 bg-white/5 rounded-2xl border border-white/10"><p class="text-sm text-[var(--muted)]">মোট সাইজ</p><p class="text-3xl font-bold">${prettySize(t)}</p></div><div class="p-5 bg-white/5 rounded-2xl border border-white/10 flex flex-col justify-between"><p class="text-sm text-[var(--muted)]">থিম</p><button id="toggleTheme" class="mt-2 py-2 rounded-lg border border-white/10 hover:bg-white/10">Dark/Light</button></div></div></div>`;qs('#toggleTheme').onclick=()=>document.documentElement.classList.toggle('invert');}
+float noise(vec3 p){
+  float n=0.,a=0.6;
+  for(int i=0;i&lt;4;i++){
+    n+= (sin(p.x)+sin(p.y)+sin(p.z))*0.33*a;
+    p*=1.8; a*=0.55;
+  }
+  return n*0.5+0.5;
+}
 
-function files(){const v=qs('#view');if(!state.files.length){v.innerHTML=`<div class="glass rounded-3xl p-6 text-center"><p class="text-[var(--muted)]">কোনো ফাইল নেই</p></div>`;return;}
-v.innerHTML='<div class="space-y-4">'+state.files.sort((a,b)=>b.created-a.created).map(f=>{const d=new Date(f.created).toLocaleString();return`<article class="glass p-4 rounded-2xl border border-white/10 flex justify-between items-start"><div><h4 class="font-medium">${f.name}</h4><p class="text-xs text-[var(--muted)]">${prettySize(f.size)} • ${d}</p></div><div class="flex gap-2"><button data-id="${f.id}" data-act="download" class="px-3 py-1 rounded-lg border border-white/10 hover:bg-white/10 text-sm">⬇️</button><button data-id="${f.id}" data-act="delete" class="px-3 py-1 rounded-lg border border-white/10 hover:bg-white/10 text-sm">🗑️</button></div></article>`}).join('')+'</div>';
-v.onclick=async e=>{const b=e.target.closest('button');if(!b)return;const f=state.files.find(x=>x.id===b.dataset.id);if(!f)return;if(b.dataset.act==='delete'){if(confirm('মুছে ফেলবেন?')){await dbDelete(f.id);await refreshFiles();files();}}else{try{const ab=await decryptData(state.key,f.iv,f.data);const blob=new Blob([ab],{type:f.type||'application/octet-stream'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=f.name;a.click();}catch{alert('ডিক্রিপ্ট ব্যর্থ');}}};}
+float field(vec3 p){
+  float base=noise(p*1.2+vec3(0.,T*speed*0.2,0.));
+  float c=noise(p*3.0+vec3(7.,2.,9.)+T*speed*0.5);
+  float h=smoothstep(0.6,-0.6,p.y);
+  return clamp((base*0.9+c*0.4)*h*density,0.,1.);
+}
 
-function upload(){const v=qs('#view');v.innerHTML=`<div class="glass rounded-3xl p-6"><h2 class="text-xl font-semibold mb-4">নতুন ফাইল আপলোড</h2><form id="uploadForm" class="space-y-4"><input id="fileInput" type="file" multiple class="block w-full text-sm text-[var(--muted)] file:mr-4 file:bg-[var(--accent)] file:text-black file:px-4 file:py-2 file:rounded-md hover:file:opacity-90"><button class="btn w-full">আপলোড</button></form><div id="progress" class="mt-4 text-sm text-[var(--muted)]"></div></div>`;
-qs('#uploadForm').onsubmit=async e=>{e.preventDefault();const files=[...qs('#fileInput').files];if(!files.length)return alert('ফাইল সিলেক্ট করুন');const prog=qs('#progress');for(const f of files){prog.textContent=`Encrypting ${f.name}...`;const ab=await f.arrayBuffer();const ed=await encryptData(state.key,ab);await dbPut({id:crypto.randomUUID(),name:f.name,size:f.size,type:f.type,created:Date.now(),iv:ed.iv,data:ed.data});}await refreshFiles();alert('আপলোড সম্পন্ন');files();};}
+void main(){
+  vec2 uv = (gl_FragCoord.xy / R) * 2. - 1.;
+  uv.x *= R.x/R.y;
 
-function settings(){const v=qs('#view');v.innerHTML=`<div class="glass rounded-3xl p-6 space-y-6"><div><h3 class="text-lg font-semibold mb-2">🔑 ব্যাকআপ</h3><button id="backupBtn" class="btn">ডাউনলোড</button><label class="ml-3 px-4 py-2 rounded-lg border border-white/10 hover:bg-white/10 cursor-pointer">ইমপোর্ট<input id="restoreInput" type="file" accept="application/json" class="hidden"></label></div><div><h3 class="text-lg font-semibold mb-2">🔐 পাসওয়ার্ড পরিবর্তন</h3><form id="changeForm" class="grid md:grid-cols-3 gap-3"><input id="oldPass" type="password" placeholder="পুরোনো" class="px-3 py-2 rounded-lg bg-white/5 border border-white/10"><input id="newPass" type="password" placeholder="নতুন" class="px-3 py-2 rounded-lg bg-white/5 border border-white/10"><button class="btn">আপডেট</button></form></div></div>`;
-qs('#backupBtn').onclick=async()=>{const f=await dbGetAll();const json=JSON.stringify({ver:1,files:f});const blob=new Blob([json],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`vaultifyx-backup-${Date.now()}.vltx`;a.click();};
-qs('#restoreInput').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{const data=JSON.parse(await file.text());for(const f of data.files||[])await dbPut(f);await refreshFiles();alert('ইমপোর্ট সম্পন্ন');}catch{alert('ইমপোর্ট ব্যর্থ');}};
-qs('#changeForm').onsubmit=async e=>{e.preventDefault();const old=qs('#oldPass').value,nw=qs('#newPass').value;const s=await metaGet('passHash');if(await sha256(old)!==s)return alert('পুরোনো পাসওয়ার্ড ভুল');if(nw.length<6)return alert('কমপক্ষে ৬ অক্ষর');await metaSet('passHash',await sha256(nw));const salt=new Uint8Array(await metaGet('salt'));state.key=await deriveKey(nw,salt);alert('পাসওয়ার্ড আপডেট');};}
-</script>
-</body>
+  vec3 ro = vec3(3.,1.2,3.);
+  vec3 ta = vec3(0.,0.4,0.);
+  vec3 f = normalize(ta-ro);
+  vec3 r = normalize(cross(vec3(0,1,0),f));
+  vec3 u = cross(f,r);
+  vec3 rd = normalize(r*uv.x + u*uv.y + f*1.6);
+
+  vec3 L = normalize(vec3(-0.5,0.6,-0.8));
+  vec3 tint = vec3(0.85,0.9,1.0);
+  vec3 sky = vec3(0.06,0.12,0.25);
+
+  float t=0.,dt=0.25,md=20.,A=0.;
+  vec3 C=vec3(0.);
+
+  for(int i=0;i&lt;80;i++){
+    vec3 p = ro + rd * t;
+    float d = field(p);
+    float ext = d*1.4;
+
+    float lt = 1.0;
+    vec3 lp = p;
+    for(int j=0;j&lt;6;j++){
+      lp += L*0.8;
+      lt *= exp(-field(lp)*0.5);
+    }
+
+    float ph = scatter;
+    vec3 s = tint * d * lt * lightI * ph;
+
+    float a = 1. - exp(-ext*dt);
+    a *= (1. - A);
+
+    C += s * a;
+    A += a;
+
+    t += dt;
+    if(t &gt; md || A &gt; 0.99) break;
+  }
+
+  vec3 col = mix(sky, C + sky*0.25, A);
+  col = pow(col, vec3(0.75));
+  gl_FragColor = vec4(col,1);
+}
+`, gl.FRAGMENT_SHADER);
+
+const prog = gl.createProgram();
+gl.attachShader(prog,vs);
+gl.attachShader(prog,fs);
+gl.linkProgram(prog);
+gl.useProgram(prog);
+
+const buf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+
+const loc = {
+  p: gl.getAttribLocation(prog,&#34;p&#34;),
+  R: gl.getUniformLocation(prog,&#34;R&#34;),
+  T: gl.getUniformLocation(prog,&#34;T&#34;),
+  density: gl.getUniformLocation(prog,&#34;density&#34;),
+  scatter: gl.getUniformLocation(prog,&#34;scatter&#34;),
+  speed: gl.getUniformLocation(prog,&#34;speed&#34;),
+  lightI: gl.getUniformLocation(prog,&#34;lightI&#34;)
+};
+
+gl.enableVertexAttribArray(loc.p);
+gl.vertexAttribPointer(loc.p,2,gl.FLOAT,false,0,0);
+
+// MAXIMUM VALUES
+gl.uniform1f(loc.density, 5.0);
+gl.uniform1f(loc.scatter, 2.0);
+gl.uniform1f(loc.speed, 2.0);
+gl.uniform1f(loc.lightI, 5.0);
+
+let t0 = performance.now();
+function draw(){
+  requestAnimationFrame(draw);
+  gl.uniform2f(loc.R, canvas.width, canvas.height);
+  gl.uniform1f(loc.T, (performance.now()-t0)/1000);
+  gl.drawArrays(gl.TRIANGLES,0,6);
+}
+draw();
+    </script>
+  </body>
 </html>
